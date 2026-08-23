@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refs - 参考サイト・参考動画ストック</title>
+  <meta name="description" content="参考にしたサイトや動画をブラウザに保存しておけるブックマークアプリ">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="brand"><span class="brand-mark">R</span>efs</h1>
+      <p class="brand-sub">参考サイト・参考動画のストック</p>
+      <div class="header-actions">
+        <button type="button" id="export-btn" class="ghost-btn">書き出し</button>
+        <button type="button" id="import-btn" class="ghost-btn">読み込み</button>
+        <input type="file" id="import-file" accept="application/json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel" aria-labelledby="form-title">
+      <h2 id="form-title" class="panel-title">追加する</h2>
+      <form id="entry-form" class="entry-form" novalidate>
+        <input type="hidden" id="entry-id">
+
+        <div class="field field-url">
+          <label for="url">URL <span class="required">必須</span></label>
+          <input type="url" id="url" name="url" placeholder="https://example.com/article" required autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="title">タイトル</label>
+          <input type="text" id="title" name="title" placeholder="空欄ならURLから自動で入ります" autocomplete="off">
+        </div>
+
+        <div class="field field-type">
+          <span class="label-like">種類</span>
+          <div class="radio-group" role="radiogroup" aria-label="種類">
+            <label class="radio"><input type="radio" name="type" value="site" checked><span>サイト</span></label>
+            <label class="radio"><input type="radio" name="type" value="video"><span>動画</span></label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="tags">タグ</label>
+          <input type="text" id="tags" name="tags" placeholder="カンマ区切り: CSS, レイアウト" autocomplete="off">
+        </div>
+
+        <div class="field field-note">
+          <label for="note">メモ</label>
+          <textarea id="note" name="note" rows="2" placeholder="どこが参考になったか"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-btn" id="submit-btn">保存する</button>
+          <button type="button" class="ghost-btn" id="cancel-btn" hidden>編集をやめる</button>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="toolbar" aria-label="絞り込み">
+      <div class="search-box">
+        <input type="search" id="search" placeholder="タイトル・URL・メモ・タグで検索" autocomplete="off" aria-label="検索">
+      </div>
+      <div class="filter-group" role="group" aria-label="種類で絞り込み">
+        <button type="button" class="chip is-active" data-filter="all">すべて</button>
+        <button type="button" class="chip" data-filter="site">サイト</button>
+        <button type="button" class="chip" data-filter="video">動画</button>
+        <button type="button" class="chip" data-filter="fav">★ お気に入り</button>
+      </div>
+      <div class="sort-box">
+        <label for="sort" class="visually-hidden">並び順</label>
+        <select id="sort">
+          <option value="new">新しい順</option>
+          <option value="old">古い順</option>
+          <option value="title">タイトル順</option>
+        </select>
+      </div>
+    </section>
+
+    <p class="count" id="count" aria-live="polite"></p>
+    <div id="tag-cloud" class="tag-cloud" aria-label="タグ"></div>
+
+    <ul id="list" class="card-list"></ul>
+
+    <p id="empty" class="empty" hidden>
+      まだ何も保存されていません。上のフォームからURLを追加してください。
+    </p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>データはこのブラウザの中（localStorage）だけに保存されます。別の端末には引き継がれないので、<strong>「書き出し」</strong>でJSONを保存しておくと安心です。</p>
+    </div>
+  </footer>
+
+  <template id="card-template">
+    <li class="card">
+      <a class="card-thumb" target="_blank" rel="noopener noreferrer">
+        <img alt="" loading="lazy">
+        <span class="thumb-fallback" aria-hidden="true"></span>
+        <span class="play-badge" aria-hidden="true">▶</span>
+      </a>
+      <div class="card-body">
+        <div class="card-head">
+          <span class="type-badge"></span>
+          <button type="button" class="fav-btn" aria-label="お気に入り">★</button>
+        </div>
+        <h3 class="card-title"><a target="_blank" rel="noopener noreferrer"></a></h3>
+        <p class="card-host"></p>
+        <p class="card-note"></p>
+        <ul class="card-tags"></ul>
+        <div class="card-foot">
+          <time class="card-date"></time>
+          <span class="card-btns">
+            <button type="button" class="mini-btn edit-btn">編集</button>
+            <button type="button" class="mini-btn danger delete-btn">削除</button>
+          </span>
+        </div>
+      </div>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
