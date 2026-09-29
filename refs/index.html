@@ -45,6 +45,12 @@
         </div>
 
         <div class="field">
+          <label for="genre">ジャンル</label>
+          <input type="text" id="genre" name="genre" list="genre-options" placeholder="未分類（AIで自動分類できます）" autocomplete="off">
+          <datalist id="genre-options"></datalist>
+        </div>
+
+        <div class="field">
           <label for="tags">タグ</label>
           <input type="text" id="tags" name="tags" placeholder="カンマ区切り: CSS, レイアウト" autocomplete="off">
         </div>
@@ -62,6 +68,55 @@
       </form>
     </section>
 
+    <section class="panel ai-panel" aria-labelledby="ai-title">
+      <h2 id="ai-title" class="panel-title">AIでジャンル分け<span class="panel-note">Gemini API</span></h2>
+
+      <div class="ai-run">
+        <button type="button" class="primary-btn" id="classify-btn">ジャンル分けを実行</button>
+        <label class="check"><input type="checkbox" id="only-unclassified" checked><span>未分類だけ</span></label>
+        <label class="check"><input type="checkbox" id="with-tags"><span>タグも提案する</span></label>
+        <button type="button" class="ghost-btn" id="undo-btn" hidden>元に戻す</button>
+      </div>
+
+      <p class="ai-status" id="ai-status" role="status" aria-live="polite"></p>
+
+      <details class="ai-settings" id="ai-settings">
+        <summary>APIキーの設定</summary>
+
+        <div class="settings-body">
+          <div class="field">
+            <label for="api-key">Gemini APIキー</label>
+            <input type="password" id="api-key" placeholder="AI Studio で発行したキー" autocomplete="off" spellcheck="false">
+          </div>
+
+          <div class="field">
+            <label for="model">モデル</label>
+            <div class="model-row">
+              <select id="model"><option value="">（キーを保存してから取得）</option></select>
+              <button type="button" class="ghost-btn" id="fetch-models-btn">一覧を取得</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="genre-list">ジャンル一覧（1行に1つ）</label>
+            <textarea id="genre-list" rows="6" spellcheck="false"></textarea>
+          </div>
+
+          <div class="settings-actions">
+            <button type="button" class="primary-btn" id="save-settings-btn">設定を保存</button>
+            <button type="button" class="ghost-btn" id="clear-key-btn">キーを削除</button>
+          </div>
+
+          <p class="warn">
+            APIキーはこのブラウザの localStorage にだけ保存され、GitHubには送信されません。<br>
+            キーをHTMLやJSに直接書いてコミットしないでください。公開リポジトリに載せると誰でも使えてしまいます。
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">AI Studioでキーを発行</a>したあと、
+            Google Cloudコンソールでキーに「HTTPリファラー制限」をかけておくとより安全です。
+          </p>
+        </div>
+      </details>
+    </section>
+
     <section class="toolbar" aria-label="絞り込み">
       <div class="search-box">
         <input type="search" id="search" placeholder="タイトル・URL・メモ・タグで検索" autocomplete="off" aria-label="検索">
@@ -73,6 +128,8 @@
         <button type="button" class="chip" data-filter="fav">★ お気に入り</button>
       </div>
       <div class="sort-box">
+        <label for="genre-filter" class="visually-hidden">ジャンルで絞り込み</label>
+        <select id="genre-filter"><option value="">ジャンル: すべて</option></select>
         <label for="sort" class="visually-hidden">並び順</label>
         <select id="sort">
           <option value="new">新しい順</option>
@@ -107,7 +164,10 @@
       </a>
       <div class="card-body">
         <div class="card-head">
-          <span class="type-badge"></span>
+          <span class="badges">
+            <span class="type-badge"></span>
+            <span class="genre-badge" hidden></span>
+          </span>
           <button type="button" class="fav-btn" aria-label="お気に入り">★</button>
         </div>
         <h3 class="card-title"><a target="_blank" rel="noopener noreferrer"></a></h3>
@@ -125,6 +185,7 @@
     </li>
   </template>
 
+  <script src="gemini.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

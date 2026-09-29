@@ -283,6 +283,126 @@ a {
   font-size: 13px;
 }
 
+/* AIパネル */
+.panel-note {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: rgba(35, 155, 118, 0.12);
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.ai-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.check input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ai-status {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 1.2em;
+  white-space: pre-wrap;
+}
+
+.ai-status.is-ok {
+  color: var(--accent-dark);
+}
+
+.ai-status.is-error {
+  color: var(--danger);
+}
+
+.ai-settings {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.ai-settings summary {
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.settings-body {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.model-row {
+  display: flex;
+  gap: 8px;
+}
+
+.model-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: #fff;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.model-row .ghost-btn {
+  white-space: nowrap;
+}
+
+.settings-body textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: #fff;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.warn {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: #fff8e6;
+  border: 1px solid #f0d9a0;
+  color: #7a5c15;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.warn a {
+  color: var(--accent-dark);
+  text-decoration: underline;
+}
+
 /* toolbar */
 .toolbar {
   display: flex;
@@ -455,8 +575,23 @@ a {
 
 .card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.genre-badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  background-color: #eef1f4;
+  color: var(--muted);
 }
 
 .type-badge {
@@ -619,5 +754,20 @@ a {
 
   .card-thumb {
     background-color: #2c3136;
+  }
+
+  .genre-badge {
+    background-color: #2c3136;
+  }
+
+  .model-row select,
+  .settings-body textarea {
+    background-color: #1b1f22;
+  }
+
+  .warn {
+    background-color: #2b2519;
+    border-color: #4a3f26;
+    color: #e0c88a;
   }
 }

@@ -2,13 +2,31 @@
 
 (function () {
   var STORAGE_KEY = 'refs.items.v1';
+  var SETTINGS_KEY = 'refs.settings.v1';
+
+  var DEFAULT_GENRES = [
+    'デザイン参考',
+    'フロントエンド',
+    'バックエンド',
+    'インフラ・開発環境',
+    'AI・機械学習',
+    '学習・チュートリアル',
+    'ツール・サービス',
+    '仕事・キャリア',
+    'エンタメ',
+    'その他'
+  ];
 
   var state = {
     items: [],
+    settings: { apiKey: '', model: '', genres: DEFAULT_GENRES.slice() },
     filter: 'all',
+    genre: '',
     tag: null,
     keyword: '',
-    sort: 'new'
+    sort: 'new',
+    snapshot: null,
+    running: false
   };
 
   var els = {
@@ -29,6 +47,21 @@
     count: document.getElementById('count'),
     tagCloud: document.getElementById('tag-cloud'),
     template: document.getElementById('card-template'),
+    genre: document.getElementById('genre'),
+    genreOptions: document.getElementById('genre-options'),
+    genreFilter: document.getElementById('genre-filter'),
+    apiKey: document.getElementById('api-key'),
+    model: document.getElementById('model'),
+    genreList: document.getElementById('genre-list'),
+    aiSettings: document.getElementById('ai-settings'),
+    aiStatus: document.getElementById('ai-status'),
+    classifyBtn: document.getElementById('classify-btn'),
+    undoBtn: document.getElementById('undo-btn'),
+    onlyUnclassified: document.getElementById('only-unclassified'),
+    withTags: document.getElementById('with-tags'),
+    saveSettingsBtn: document.getElementById('save-settings-btn'),
+    clearKeyBtn: document.getElementById('clear-key-btn'),
+    fetchModelsBtn: document.getElementById('fetch-models-btn'),
     exportBtn: document.getElementById('export-btn'),
     importBtn: document.getElementById('import-btn'),
     importFile: document.getElementById('import-file')
@@ -51,6 +84,25 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
     } catch (e) {
       showError('保存できませんでした。ブラウザの保存容量がいっぱいかもしれません。');
+    }
+  }
+
+  function loadSettings() {
+    var saved = { apiKey: '', model: '', genres: DEFAULT_GENRES.slice() };
+    try {
+      var parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      if (typeof parsed.apiKey === 'string') saved.apiKey = parsed.apiKey;
+      if (typeof parsed.model === 'string') saved.model = parsed.model;
+      if (Array.isArray(parsed.genres) && parsed.genres.length) saved.genres = parsed.genres;
+    } catch (e) { /* 既定値のまま */ }
+    return saved;
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+    } catch (e) {
+      setAiStatus('設定を保存できませんでした。', 'error');
     }
   }
 
@@ -207,6 +259,7 @@
       url: url,
       title: els.title.value.trim() || fallbackTitle(url),
       type: selectedType(),
+      genre: els.genre.value.trim(),
       tags: parseTags(els.tags.value),
       note: els.note.value.trim()
     };
@@ -240,6 +293,7 @@
     els.id.value = item.id;
     els.url.value = item.url;
     els.title.value = item.title || '';
+    els.genre.value = item.genre || '';
     els.tags.value = (item.tags || []).join(', ');
     els.note.value = item.note || '';
     setType(item.type === 'video' ? 'video' : 'site');
@@ -254,7 +308,7 @@
 
   function matchesKeyword(item, keyword) {
     if (!keyword) return true;
-    var haystack = [item.title, item.url, item.note].concat(item.tags || []).join(' ').toLowerCase();
+    var haystack = [item.title, item.url, item.note, item.genre].concat(item.tags || []).join(' ').toLowerCase();
     return keyword.split(/\s+/).every(function (word) {
       return haystack.indexOf(word) !== -1;
     });
@@ -268,6 +322,8 @@
       if (state.filter === 'site' && item.type !== 'site') return false;
       if (state.filter === 'video' && item.type !== 'video') return false;
       if (state.tag && (item.tags || []).indexOf(state.tag) === -1) return false;
+      if (state.genre === '__none__' && item.genre) return false;
+      if (state.genre && state.genre !== '__none__' && item.genre !== state.genre) return false;
       return matchesKeyword(item, keyword);
     });
 
@@ -306,6 +362,50 @@
     });
   }
 
+  function knownGenres() {
+    var seen = {};
+    var list = [];
+    state.settings.genres.concat(state.items.map(function (item) { return item.genre; }))
+      .forEach(function (genre) {
+        if (!genre || seen[genre]) return;
+        seen[genre] = true;
+        list.push(genre);
+      });
+    return list;
+  }
+
+  function renderGenreControls() {
+    var genres = knownGenres();
+
+    els.genreOptions.textContent = '';
+    genres.forEach(function (genre) {
+      var option = document.createElement('option');
+      option.value = genre;
+      els.genreOptions.appendChild(option);
+    });
+
+    var counts = {};
+    var unclassified = 0;
+    state.items.forEach(function (item) {
+      if (item.genre) counts[item.genre] = (counts[item.genre] || 0) + 1;
+      else unclassified += 1;
+    });
+
+    var previous = state.genre;
+    els.genreFilter.textContent = '';
+    els.genreFilter.appendChild(new Option('ジャンル: すべて', ''));
+    genres.forEach(function (genre) {
+      if (!counts[genre]) return;
+      els.genreFilter.appendChild(new Option(genre + ' (' + counts[genre] + ')', genre));
+    });
+    if (unclassified) els.genreFilter.appendChild(new Option('未分類 (' + unclassified + ')', '__none__'));
+    els.genreFilter.value = previous;
+    if (els.genreFilter.value !== previous) {
+      state.genre = '';
+      els.genreFilter.value = '';
+    }
+  }
+
   function buildCard(item) {
     var node = els.template.content.firstElementChild.cloneNode(true);
     var isVideo = item.type === 'video';
@@ -327,6 +427,12 @@
     img.src = thumb.src;
 
     node.querySelector('.type-badge').textContent = isVideo ? '動画' : 'サイト';
+
+    var genreBadge = node.querySelector('.genre-badge');
+    if (item.genre) {
+      genreBadge.textContent = item.genre;
+      genreBadge.hidden = false;
+    }
 
     var titleLink = node.querySelector('.card-title a');
     titleLink.href = item.url;
@@ -376,6 +482,7 @@
     });
 
     renderTagCloud();
+    renderGenreControls();
 
     var total = state.items.length;
     els.count.textContent = total === 0 ? '' : items.length + ' 件表示 / 全 ' + total + ' 件';
@@ -410,6 +517,198 @@
         other.classList.toggle('is-active', other === chip);
       });
       render();
+    });
+  });
+
+  els.genreFilter.addEventListener('change', function () {
+    state.genre = els.genreFilter.value;
+    render();
+  });
+
+  /* ---------- AI（Gemini）でジャンル分け ---------- */
+
+  function setAiStatus(message, kind) {
+    els.aiStatus.textContent = message || '';
+    els.aiStatus.className = 'ai-status' + (kind ? ' is-' + kind : '');
+  }
+
+  function parseGenreList(text) {
+    return text.split('\n')
+      .map(function (line) { return line.trim(); })
+      .filter(function (line) { return line !== ''; })
+      .filter(function (line, i, arr) { return arr.indexOf(line) === i; })
+      .slice(0, 30);
+  }
+
+  function fillSettingsForm() {
+    els.apiKey.value = state.settings.apiKey;
+    els.genreList.value = state.settings.genres.join('\n');
+    if (state.settings.model) {
+      if (!els.model.querySelector('option[value="' + state.settings.model + '"]')) {
+        els.model.appendChild(new Option(state.settings.model, state.settings.model));
+      }
+      els.model.value = state.settings.model;
+    }
+  }
+
+  function requireKey() {
+    if (state.settings.apiKey) return true;
+    els.aiSettings.open = true;
+    setAiStatus('先にGemini APIキーを設定してください。', 'error');
+    els.apiKey.focus();
+    return false;
+  }
+
+  function fetchModels() {
+    if (!requireKey()) return Promise.resolve(null);
+
+    els.fetchModelsBtn.disabled = true;
+    setAiStatus('モデル一覧を取得しています…');
+
+    return RefsGemini.listModels(state.settings.apiKey).then(function (models) {
+      if (!models.length) {
+        setAiStatus('使えるモデルが見つかりませんでした。', 'error');
+        return null;
+      }
+
+      var previous = state.settings.model;
+      els.model.textContent = '';
+      models.forEach(function (model) {
+        els.model.appendChild(new Option(model.label ? model.id + '（' + model.label + '）' : model.id, model.id));
+      });
+
+      var chosen = previous && models.some(function (m) { return m.id === previous; }) ? previous : models[0].id;
+      els.model.value = chosen;
+      state.settings.model = chosen;
+      saveSettings();
+      setAiStatus(models.length + ' 件のモデルを取得しました。使用中: ' + chosen, 'ok');
+      return chosen;
+    }).catch(function (err) {
+      setAiStatus(err.message, 'error');
+      return null;
+    }).then(function (result) {
+      els.fetchModelsBtn.disabled = false;
+      return result;
+    });
+  }
+
+  els.saveSettingsBtn.addEventListener('click', function () {
+    state.settings.apiKey = els.apiKey.value.trim();
+    state.settings.model = els.model.value || state.settings.model;
+    var genres = parseGenreList(els.genreList.value);
+    state.settings.genres = genres.length ? genres : DEFAULT_GENRES.slice();
+    els.genreList.value = state.settings.genres.join('\n');
+    saveSettings();
+    setAiStatus('設定を保存しました。', 'ok');
+    render();
+  });
+
+  els.clearKeyBtn.addEventListener('click', function () {
+    if (!window.confirm('保存しているAPIキーを削除しますか?')) return;
+    state.settings.apiKey = '';
+    els.apiKey.value = '';
+    saveSettings();
+    setAiStatus('APIキーを削除しました。', 'ok');
+  });
+
+  els.fetchModelsBtn.addEventListener('click', function () {
+    fetchModels();
+  });
+
+  els.model.addEventListener('change', function () {
+    state.settings.model = els.model.value;
+    saveSettings();
+  });
+
+  els.undoBtn.addEventListener('click', function () {
+    if (!state.snapshot) return;
+    state.items = state.snapshot;
+    state.snapshot = null;
+    els.undoBtn.hidden = true;
+    save();
+    render();
+    setAiStatus('ジャンル分けを元に戻しました。', 'ok');
+  });
+
+  function applyResults(results, withTags) {
+    var changed = 0;
+    state.items = state.items.map(function (item) {
+      var result = results[item.id];
+      if (!result) return item;
+
+      var updated = Object.assign({}, item, { genre: result.genre });
+      if (withTags && result.tags.length) {
+        var merged = (item.tags || []).slice();
+        result.tags.forEach(function (tag) {
+          if (merged.indexOf(tag) === -1) merged.push(tag);
+        });
+        updated.tags = merged.slice(0, 10);
+      }
+      changed += 1;
+      return updated;
+    });
+    return changed;
+  }
+
+  els.classifyBtn.addEventListener('click', function () {
+    if (state.running) return;
+    if (!requireKey()) return;
+
+    var targets = state.items.filter(function (item) {
+      return els.onlyUnclassified.checked ? !item.genre : true;
+    });
+
+    if (!targets.length) {
+      setAiStatus(els.onlyUnclassified.checked ? '未分類のものはありません。' : '登録されているものがありません。');
+      return;
+    }
+
+    var withTags = els.withTags.checked;
+    var batches = Math.ceil(targets.length / RefsGemini.BATCH_SIZE);
+    if (!window.confirm(targets.length + ' 件をGeminiに送ってジャンル分けします（APIリクエスト約' + batches + '回）。実行しますか?')) return;
+
+    state.running = true;
+    els.classifyBtn.disabled = true;
+    els.undoBtn.hidden = true;
+    setAiStatus('ジャンル分けを実行しています… 0 / ' + targets.length);
+
+    var snapshot = state.items.map(function (item) { return Object.assign({}, item, { tags: (item.tags || []).slice() }); });
+
+    function ensureModel() {
+      return state.settings.model ? Promise.resolve(state.settings.model) : fetchModels();
+    }
+
+    ensureModel().then(function (model) {
+      if (!model) return null;
+      return RefsGemini.classify({
+        apiKey: state.settings.apiKey,
+        model: model,
+        items: targets,
+        genres: state.settings.genres,
+        withTags: withTags,
+        onProgress: function (done, total) {
+          setAiStatus('ジャンル分けを実行しています… ' + done + ' / ' + total);
+        }
+      });
+    }).then(function (outcome) {
+      if (!outcome) return;
+
+      var changed = applyResults(outcome.results, withTags);
+      if (changed) {
+        state.snapshot = snapshot;
+        els.undoBtn.hidden = false;
+        save();
+        render();
+      }
+
+      var message = changed + ' 件にジャンルを付けました。';
+      if (outcome.failed.length) message += ' ' + outcome.failed.length + ' 件は判定できませんでした。';
+      setAiStatus(message, changed ? 'ok' : 'error');
+    }).catch(function (err) {
+      setAiStatus(err.message, 'error');
+    }).then(function () {
+      state.running = false;
+      els.classifyBtn.disabled = false;
     });
   });
 
@@ -462,6 +761,7 @@
           url: item.url,
           title: item.title || fallbackTitle(item.url),
           type: item.type === 'video' ? 'video' : 'site',
+          genre: typeof item.genre === 'string' ? item.genre : '',
           tags: Array.isArray(item.tags) ? item.tags : [],
           note: typeof item.note === 'string' ? item.note : '',
           fav: Boolean(item.fav),
@@ -481,5 +781,7 @@
   /* ---------- init ---------- */
 
   state.items = load();
+  state.settings = loadSettings();
+  fillSettingsForm();
   render();
 })();
